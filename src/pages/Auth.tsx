@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,12 +10,20 @@ import { toast } from '@/hooks/use-toast';
 import { BookOpen } from 'lucide-react';
 
 export default function Auth() {
-  const { signIn, signUp } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { signIn, signUp, user, loading } = useAuth();
+  const [authLoading, setAuthLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
+    setAuthLoading(true);
     
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
@@ -31,16 +40,17 @@ export default function Auth() {
     } else {
       toast({
         title: "Login realizado com sucesso!",
-        description: "Bem-vindo(a) de volta."
+        description: "Redirecionando..."
       });
+      // The useEffect above will handle the redirect when user state updates
     }
     
-    setLoading(false);
+    setAuthLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
+    setAuthLoading(true);
     
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
@@ -62,8 +72,20 @@ export default function Auth() {
       });
     }
     
-    setLoading(false);
+    setAuthLoading(false);
   };
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary">
+        <div className="text-center">
+          <BookOpen className="h-12 w-12 text-primary mx-auto mb-4 animate-pulse" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
@@ -106,8 +128,8 @@ export default function Auth() {
                     placeholder="••••••••"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Entrando..." : "Entrar"}
+                <Button type="submit" className="w-full" disabled={authLoading}>
+                  {authLoading ? "Entrando..." : "Entrar"}
                 </Button>
               </form>
             </TabsContent>
@@ -145,8 +167,8 @@ export default function Auth() {
                     minLength={6}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Cadastrando..." : "Cadastrar"}
+                <Button type="submit" className="w-full" disabled={authLoading}>
+                  {authLoading ? "Cadastrando..." : "Cadastrar"}
                 </Button>
               </form>
             </TabsContent>

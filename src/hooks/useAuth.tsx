@@ -48,12 +48,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createProfile = async (user: User) => {
     const { error } = await supabase
       .from('profiles')
-      .insert({
+      .upsert({
         id: user.id,
         name: user.user_metadata?.name || 'User'
+      }, {
+        onConflict: 'id'
       });
     
-    if (error && error.code !== '23505') { // Ignore duplicate key errors
+    if (error) {
       console.error('Error creating profile:', error);
     }
   };

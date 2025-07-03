@@ -9,16 +9,177 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      daily_goals: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          date: string
+          goal_text: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          date?: string
+          goal_text: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          date?: string
+          goal_text?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_statistics"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      favorite_stories: {
+        Row: {
+          created_at: string | null
+          id: string
+          narrative_tag: string | null
+          title: string
+          type: Database["public"]["Enums"]["story_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          narrative_tag?: string | null
+          title: string
+          type: Database["public"]["Enums"]["story_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          narrative_tag?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["story_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_stories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_statistics"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_statistics"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      story_progress: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          impact_type: Database["public"]["Enums"]["impact_type"]
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          impact_type: Database["public"]["Enums"]["impact_type"]
+          summary: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          impact_type?: Database["public"]["Enums"]["impact_type"]
+          summary?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_statistics"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      user_statistics: {
+        Row: {
+          completion_percentage: number | null
+          days_with_goals: number | null
+          extra_reward_days: number | null
+          name: string | null
+          negative_days: number | null
+          positive_days: number | null
+          severe_penalty_days: number | null
+          story_entries: number | null
+          total_goals_completed: number | null
+          total_goals_set: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_user_story_summary: {
+        Args: { user_id_param: string }
+        Returns: {
+          date: string
+          summary: string
+          impact_type: Database["public"]["Enums"]["impact_type"]
+          goals_set: number
+          goals_completed: number
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      impact_type: "positive" | "negative" | "extra_reward" | "severe_penalty"
+      story_type: "movie" | "series" | "book" | "game"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +294,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      impact_type: ["positive", "negative", "extra_reward", "severe_penalty"],
+      story_type: ["movie", "series", "book", "game"],
+    },
   },
 } as const

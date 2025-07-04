@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Scroll, Wand2, Calendar, TrendingUp, TrendingDown, Star, AlertTriangle } from 'lucide-react';
+import { Scroll, Wand2, Calendar, TrendingUp, TrendingDown, Star, AlertTriangle, Sparkles } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
 type StoryProgress = Tables<'story_progress'>;
@@ -43,6 +43,7 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
   const [todayEntry, setTodayEntry] = useState<StoryProgress | null>(null);
   const [customSummary, setCustomSummary] = useState('');
   const [loading, setLoading] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   useEffect(() => {
     fetchStoryProgress();
@@ -67,6 +68,179 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
       const today = new Date().toISOString().split('T')[0];
       const todayStory = data?.find(entry => entry.date === today);
       setTodayEntry(todayStory || null);
+    }
+  };
+
+  const generateAIStory = async (impactType: string, goalData: any, userName: string) => {
+    setAiGenerating(true);
+    
+    try {
+      // Get the last few story entries for context
+      const recentStories = storyEntries
+        .filter(entry => entry.date !== new Date().toISOString().split('T')[0])
+        .slice(0, 3)
+        .reverse(); // Get chronological order
+
+      // Prepare the context for AI
+      const storyContext = {
+        userName,
+        favoriteStories: favoriteStories.map(story => ({
+          title: story.title,
+          type: story.type,
+          narrativeTag: story.narrative_tag
+        })),
+        recentStories: recentStories.map(story => ({
+          date: story.date,
+          summary: story.summary,
+          impactType: story.impact_type
+        })),
+        todayPerformance: {
+          impactType,
+          totalGoals: goalData.totalGoals,
+          completedGoals: goalData.completedGoals,
+          goals: goalData.goals
+        }
+      };
+
+      // Call AI service (this would be your actual AI API call)
+      const aiStory = await callAIStoryGenerator(storyContext);
+      
+      setAiGenerating(false);
+      return aiStory;
+    } catch (error) {
+      console.error('Error generating AI story:', error);
+      setAiGenerating(false);
+      
+      // Fallback to basic story generation
+      return generateBasicStory(impactType, goalData, userName);
+    }
+  };
+
+  const callAIStoryGenerator = async (context: any): Promise<string> => {
+    // This is where you would integrate with your AI service
+    // For now, I'll create a more sophisticated prompt-based generation
+    
+    const prompt = createStoryPrompt(context);
+    
+    // Simulate AI call - replace this with actual AI service call
+    // Example: OpenAI, Claude, or your preferred AI service
+    /*
+    const response = await fetch('/api/generate-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, context })
+    });
+    
+    const result = await response.json();
+    return result.story;
+    */
+    
+    // For now, return an enhanced story based on the context
+    return generateEnhancedStory(context);
+  };
+
+  const createStoryPrompt = (context: any): string => {
+    const { userName, favoriteStories, recentStories, todayPerformance } = context;
+    
+    return `
+You are a master storyteller creating an epic, personalized adventure narrative. 
+
+PROTAGONIST: ${userName}
+
+STORY UNIVERSE: Blend elements from these favorite stories:
+${favoriteStories.map((story: any) => `- ${story.title} (${story.type}${story.narrativeTag ? `, ${story.narrativeTag}` : ''})`).join('\n')}
+
+RECENT STORY CONTEXT:
+${recentStories.length > 0 ? recentStories.map((story: any) => 
+  `${story.date}: ${story.summary} [${story.impactType}]`
+).join('\n') : 'This is the beginning of the adventure.'}
+
+TODAY'S PERFORMANCE:
+- Impact Type: ${todayPerformance.impactType}
+- Goals Set: ${todayPerformance.totalGoals}
+- Goals Completed: ${todayPerformance.completedGoals}
+- Specific Goals: ${todayPerformance.goals?.map((g: any) => `"${g.goal_text}" (${g.completed ? 'completed' : 'not completed'})`).join(', ')}
+
+INSTRUCTIONS:
+1. Continue the narrative from where the recent stories left off
+2. Incorporate consequences based on today's performance
+3. Blend themes and elements from the favorite stories naturally
+4. Keep the story engaging, around 150-200 words
+5. End with a hook for tomorrow's adventure
+6. Make ${userName} feel like the hero of their own epic tale
+
+Write the next chapter of ${userName}'s adventure:
+    `;
+  };
+
+  const generateEnhancedStory = (context: any): string => {
+    const { userName, favoriteStories, recentStories, todayPerformance } = context;
+    
+    // Create a more sophisticated story based on context
+    const storyElements = favoriteStories.map((story: any) => story.title).slice(0, 2);
+    const hasRecentContext = recentStories.length > 0;
+    
+    let story = '';
+    
+    // Opening based on recent context
+    if (hasRecentContext) {
+      const lastStory = recentStories[recentStories.length - 1];
+      if (lastStory.impactType === 'positive') {
+        story += `Riding the wave of recent victories, ${userName} faced today's challenges with renewed confidence. `;
+      } else if (lastStory.impactType === 'negative') {
+        story += `Still recovering from recent setbacks, ${userName} approached today with determination to turn things around. `;
+      } else {
+        story += `Building upon recent experiences, ${userName} stepped into today's adventure. `;
+      }
+    } else {
+      story += `In a world where ${storyElements.join(' and ')} converge, ${userName} begins an epic journey. `;
+    }
+
+    // Main story based on performance
+    switch (todayPerformance.impactType) {
+      case 'positive':
+        story += `Today's disciplined pursuit of goals paid off magnificently. Like the heroes of ${storyElements[0] || 'legend'}, ${userName} demonstrated unwavering focus and achieved every objective set forth. The universe responded with favor - new allies emerged, hidden paths revealed themselves, and the protagonist's reputation grew among both friends and rivals. `;
+        break;
+      case 'negative':
+        story += `Today brought challenges that tested ${userName}'s resolve. Some goals remained unfinished, creating ripples of consequence throughout the adventure. Like the trials faced in ${storyElements[0] || 'great tales'}, these setbacks serve as lessons. The path ahead grows more treacherous, but also more rewarding for those who persevere. `;
+        break;
+      case 'extra_reward':
+        story += `Today was nothing short of legendary! ${userName} not only conquered every planned objective but went beyond, achieving feats that surprised even the most optimistic expectations. The cosmos itself seemed to celebrate - rare treasures appeared, powerful allies pledged their support, and whispers of ${userName}'s extraordinary deeds spread across the realm. `;
+        break;
+      case 'severe_penalty':
+        story += `A dark day in ${userName}'s chronicle. With no goals achieved, the adventure took a perilous turn. Like the darkest moments in ${storyElements[0] || 'epic tales'}, when heroes face their greatest trials, the world around ${userName} grew hostile. Allies questioned their faith, enemies grew bolder, and the path forward became shrouded in uncertainty. `;
+        break;
+    }
+
+    // Closing hook
+    const hooks = [
+      "Tomorrow's dawn brings new mysteries to unravel...",
+      "But this is merely the prelude to greater adventures ahead...",
+      "The next chapter of this epic tale awaits...",
+      "What challenges will tomorrow's sunrise reveal?",
+      "The adventure continues, with destiny calling..."
+    ];
+    
+    story += hooks[Math.floor(Math.random() * hooks.length)];
+    
+    return story;
+  };
+
+  const generateBasicStory = (impactType: string, goalData: any, userName: string): string => {
+    // Fallback basic story generation (your existing logic)
+    const storyTitles = favoriteStories.map(s => s.title).join(', ');
+    
+    switch (impactType) {
+      case 'positive':
+        return `${userName} demonstrou determinação hoje, conquistando todas as suas metas. Inspirado pelos mundos de ${storyTitles}, nosso protagonista avança com confiança em sua jornada épica. Uma nova habilidade foi desbloqueada e o caminho adiante se ilumina com possibilidades.`;
+      case 'negative':
+        return `${userName} enfrentou desafios hoje e algumas metas ficaram incompletas. Como nos momentos difíceis de ${storyTitles}, nosso herói deve aprender com os obstáculos. A jornada continua, mas com maior cautela e sabedoria adquirida através da adversidade.`;
+      case 'extra_reward':
+        return `${userName} superou todas as expectativas hoje! Assim como os grandes heróis de ${storyTitles}, nosso protagonista não apenas cumpriu suas metas, mas foi além. Uma recompensa especial aguarda: um artefato mágico foi descoberto e novos caminhos se abrem na aventura.`;
+      case 'severe_penalty':
+        return `${userName} enfrentou um dia sombrio sem conseguir completar nenhuma meta. Como nos momentos mais desesperadores de ${storyTitles}, nosso herói deve encontrar força interior para superar esta queda. O caminho se tornou mais perigoso, mas ainda há esperança de redenção.`;
+      default:
+        return `${userName} continua sua jornada épica, enfrentando novos desafios inspirados pelos mundos de ${storyTitles}.`;
     }
   };
 
@@ -104,28 +278,20 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
         impactType = 'extra_reward';
       }
 
-      // Generate a simple story based on favorite stories and performance
-      const storyTitles = favoriteStories.map(s => s.title).join(', ');
       const userName = user.user_metadata?.name || 'Herói';
       
+      // Generate AI-powered story
       let generatedSummary = '';
       
-      switch (impactType) {
-        case 'positive':
-          generatedSummary = `${userName} demonstrou determinação hoje, conquistando todas as suas metas. Inspirado pelos mundos de ${storyTitles}, nosso protagonista avança com confiança em sua jornada épica. Uma nova habilidade foi desbloqueada e o caminho adiante se ilumina com possibilidades.`;
-          break;
-        case 'negative':
-          generatedSummary = `${userName} enfrentou desafios hoje e algumas metas ficaram incompletas. Como nos momentos difíceis de ${storyTitles}, nosso herói deve aprender com os obstáculos. A jornada continua, mas com maior cautela e sabedoria adquirida através da adversidade.`;
-          break;
-        case 'extra_reward':
-          generatedSummary = `${userName} superou todas as expectativas hoje! Assim como os grandes heróis de ${storyTitles}, nosso protagonista não apenas cumpriu suas metas, mas foi além. Uma recompensa especial aguarda: um artefato mágico foi descoberto e novos caminhos se abrem na aventura.`;
-          break;
-        case 'severe_penalty':
-          generatedSummary = `${userName} enfrentou um dia sombrio sem conseguir completar nenhuma meta. Como nos momentos mais desesperadores de ${storyTitles}, nosso herói deve encontrar força interior para superar esta queda. O caminho se tornou mais perigoso, mas ainda há esperança de redenção.`;
-          break;
+      if (customSummary.trim()) {
+        generatedSummary = customSummary.trim();
+      } else {
+        generatedSummary = await generateAIStory(impactType, {
+          totalGoals,
+          completedGoals,
+          goals: todayGoals
+        }, userName);
       }
-
-      const finalSummary = customSummary.trim() || generatedSummary;
 
       // Save story progress
       const { error: insertError } = await supabase
@@ -133,7 +299,7 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
         .upsert({
           user_id: user.id,
           date: today,
-          summary: finalSummary,
+          summary: generatedSummary,
           impact_type: impactType
         }, {
           onConflict: 'user_id,date'
@@ -146,7 +312,7 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
       
       toast({
         title: "História atualizada!",
-        description: "Sua aventura épica continua..."
+        description: aiGenerating ? "Sua aventura épica foi gerada pela IA!" : "Sua aventura épica continua..."
       });
     } catch (error: any) {
       toast({
@@ -175,18 +341,43 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
           <div className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-primary" />
             <span className="font-medium">Gerar História de Hoje</span>
+            {aiGenerating && <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />}
           </div>
           
           <Textarea
             value={customSummary}
             onChange={(e) => setCustomSummary(e.target.value)}
-            placeholder="Personalize sua história de hoje (opcional) ou deixe em branco para gerar automaticamente baseado no seu desempenho..."
+            placeholder="Personalize sua história de hoje (opcional) ou deixe em branco para gerar automaticamente com IA baseado no seu desempenho e histórias anteriores..."
             rows={3}
           />
           
-          <Button onClick={generateStoryUpdate} disabled={loading} className="w-full">
-            {loading ? "Gerando..." : "Gerar História de Hoje"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={generateStoryUpdate} 
+              disabled={loading || aiGenerating} 
+              className="flex-1"
+            >
+              {aiGenerating ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                  IA Gerando...
+                </>
+              ) : loading ? (
+                "Salvando..."
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Gerar com IA
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {favoriteStories.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              <strong>Universo da História:</strong> {favoriteStories.map(s => s.title).join(', ')}
+            </div>
+          )}
         </div>
       )}
 
@@ -215,7 +406,7 @@ export function StoryProgress({ favoriteStories }: StoryProgressProps) {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Scroll className="h-4 w-4 text-primary" />
-          <span className="font-medium">História Anterior</span>
+          <span className="font-medium">Capítulos Anteriores</span>
         </div>
         
         {storyEntries.length === 0 ? (

@@ -4,6 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { LogOut, Settings, Target, BookOpen, Calendar, Trophy, Star } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { DailyGoals } from '@/components/DailyGoals';
@@ -19,6 +22,8 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [favoriteStories, setFavoriteStories] = useState<FavoriteStory[]>([]);
   const [showStorySelection, setShowStorySelection] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedback, setFeedback] = useState('');
   const [stats, setStats] = useState({
     totalGoals: 0,
     completedGoals: 0,
@@ -107,7 +112,16 @@ export default function Dashboard() {
     setShowStorySelection(false);
   };
 
-  const handleEvaluate = async () => {
+  const handleSubmitFeedback = async () => {
+    if (!feedback.trim()) {
+      toast({
+        title: "Erro",
+        description: "Por favor, digite sua opinião antes de enviar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const response = await fetch('https://nevespgabriel.app.n8n.cloud/webhook-test/b3bc651e-d519-4f93-b0e3-d99142aac100', {
         method: 'POST',
@@ -115,23 +129,26 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: user?.id,
-          timestamp: new Date().toISOString(),
+          Feedback: feedback,
+          userEmail: user?.email || 'nao_informado@exemplo.com',
+          leadId: user?.id || 'gerado_automaticamente_pela_aplicacao'
         }),
       });
 
       if (response.ok) {
         toast({
-          title: "Avaliação enviada!",
-          description: "Sua avaliação foi enviada com sucesso!",
+          title: "Opinião enviada!",
+          description: "Sua opinião foi enviada com sucesso! Agradecemos seu feedback.",
         });
+        setFeedback('');
+        setFeedbackOpen(false);
       } else {
-        throw new Error('Erro ao enviar avaliação');
+        throw new Error('Erro ao enviar feedback');
       }
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível enviar a avaliação. Tente novamente.",
+        description: "Não foi possível enviar sua opinião. Tente novamente.",
         variant: "destructive"
       });
     }
@@ -154,15 +171,41 @@ export default function Dashboard() {
             <span className="text-sm text-muted-foreground">
               Olá, {profile?.name || 'Usuário'}!
             </span>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleEvaluate}
-              className="gap-1"
-            >
-              <Star className="h-4 w-4" />
-              Avaliar
-            </Button>
+            <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1"
+                >
+                  <Star className="h-4 w-4" />
+                  Avaliar
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Avaliar Aplicativo</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="feedback">Qual a sua opinião sobre nosso aplicativo?</Label>
+                    <Textarea
+                      id="feedback"
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                      placeholder="Digite sua opinião aqui..."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSubmitFeedback}
+                    className="w-full"
+                  >
+                    Enviar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button
               variant="ghost"
               size="sm"

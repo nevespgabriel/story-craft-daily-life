@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { LogOut, Settings, Target, BookOpen, Calendar, Trophy } from 'lucide-react';
+import { LogOut, Settings, Target, BookOpen, Calendar, Trophy, Star } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { DailyGoals } from '@/components/DailyGoals';
 import { StorySelection } from '@/components/StorySelection';
@@ -107,6 +107,36 @@ export default function Dashboard() {
     setShowStorySelection(false);
   };
 
+  const handleEvaluate = async () => {
+    try {
+      const response = await fetch('https://nevespgabriel.app.n8n.cloud/webhook-test/b3bc651e-d519-4f93-b0e3-d99142aac100', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.id,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Avaliação enviada!",
+          description: "Sua avaliação foi enviada com sucesso!",
+        });
+      } else {
+        throw new Error('Erro ao enviar avaliação');
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar a avaliação. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (showStorySelection) {
     return <StorySelection onComplete={handleStoriesUpdated} />;
   }
@@ -124,6 +154,15 @@ export default function Dashboard() {
             <span className="text-sm text-muted-foreground">
               Olá, {profile?.name || 'Usuário'}!
             </span>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleEvaluate}
+              className="gap-1"
+            >
+              <Star className="h-4 w-4" />
+              Avaliar
+            </Button>
             <Button
               variant="ghost"
               size="sm"

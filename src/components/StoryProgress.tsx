@@ -360,7 +360,9 @@ Write the next chapter of ${userName}'s adventure:
       }
 
       const result = await response.json();
-      const generatedStory = result.story;
+      
+      // Extrair o texto da história do formato correto: array[0].output
+      const generatedStory = result[0]?.output;
 
       if (!generatedStory) {
         throw new Error('Nosso contador de histórias está tirando um cochilo. Por favor, tente mais tarde.');

@@ -347,7 +347,7 @@ Write the next chapter of ${userName}'s adventure:
       };
 
       // Chamar webhook do n8n
-      const response = await fetch('https://nevespgabriel.app.n8n.cloud/webhook-test/b3bc651e-d519-4f93-b0e3-d99142aac100', {
+      const response = await fetch('https://nevespgabriel.app.n8n.cloud/webhook-test/fc28ddee-5f20-4965-acee-5443ac01e862', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

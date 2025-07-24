@@ -248,10 +248,125 @@ Write the next chapter of ${userName}'s adventure:
     if (!user) return;
 
     setLoading(true);
+    setAiGenerating(true);
     const today = new Date().toISOString().split('T')[0];
 
     try {
-      // Get today's goals
+      // Se há custom summary, usar diretamente sem chamar n8n
+      if (customSummary.trim()) {
+        // Get today's goals para determinar impact type
+        const { data: todayGoals, error: goalsError } = await supabase
+          .from('daily_goals')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('date', today);
+
+        if (goalsError) throw goalsError;
+
+        const totalGoals = todayGoals?.length || 0;
+        const completedGoals = todayGoals?.filter(g => g.completed).length || 0;
+
+        // Determine impact type
+        let impactType: 'positive' | 'negative' | 'extra_reward' | 'severe_penalty';
+        
+        if (totalGoals === 0) {
+          impactType = 'negative';
+        } else if (completedGoals === 0) {
+          impactType = 'severe_penalty';
+        } else if (completedGoals < totalGoals) {
+          impactType = 'negative';
+        } else if (completedGoals === totalGoals) {
+          impactType = 'positive';
+        } else {
+          impactType = 'extra_reward';
+        }
+
+        // Save story progress with custom summary
+        const { error: insertError } = await supabase
+          .from('story_progress')
+          .upsert({
+            user_id: user.id,
+            date: today,
+            summary: customSummary.trim(),
+            impact_type: impactType
+          }, {
+            onConflict: 'user_id,date'
+          });
+
+        if (insertError) throw insertError;
+
+        setCustomSummary('');
+        fetchStoryProgress();
+        
+        toast({
+          title: "História personalizada salva!",
+          description: "Sua aventura épica foi registrada com sucesso!"
+        });
+        
+        setLoading(false);
+        setAiGenerating(false);
+        return;
+      }
+
+      // Buscar histórias favoritas do usuário
+      const { data: userFavoriteStories, error: favoritesError } = await supabase
+        .from('favorite_stories')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (favoritesError) {
+        throw new Error('Não foi possível acessar suas memórias. Por favor, tente novamente.');
+      }
+
+      // Buscar os 5 capítulos recentes
+      const { data: recentChapters, error: chaptersError } = await supabase
+        .from('story_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(5);
+
+      if (chaptersError) {
+        throw new Error('Não foi possível acessar suas memórias. Por favor, tente novamente.');
+      }
+
+      // Construir payload JSON para n8n
+      const payload = {
+        action: "generate_story_with_context",
+        userId: user.id,
+        userContext: {
+          favoriteStories: (userFavoriteStories || []).map(story => ({
+            title: story.title,
+            summary: story.narrative_tag || `Uma ${story.type} chamada ${story.title}.`
+          })),
+          recentChapters: (recentChapters || []).map((chapter, index) => ({
+            chapterNumber: recentChapters.length - index,
+            content: chapter.summary
+          }))
+        }
+      };
+
+      // Chamar webhook do n8n
+      const response = await fetch('https://nevespgabriel.app.n8n.cloud/webhook-test/b3bc651e-d519-4f93-b0e3-d99142aac100', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Nosso contador de histórias está tirando um cochilo. Por favor, tente mais tarde.');
+      }
+
+      const result = await response.json();
+      const generatedStory = result.story;
+
+      if (!generatedStory) {
+        throw new Error('Nosso contador de histórias está tirando um cochilo. Por favor, tente mais tarde.');
+      }
+
+      // Get today's goals para determinar impact type
       const { data: todayGoals, error: goalsError } = await supabase
         .from('daily_goals')
         .select('*')
@@ -278,28 +393,13 @@ Write the next chapter of ${userName}'s adventure:
         impactType = 'extra_reward';
       }
 
-      const userName = user.user_metadata?.name || 'Herói';
-      
-      // Generate AI-powered story
-      let generatedSummary = '';
-      
-      if (customSummary.trim()) {
-        generatedSummary = customSummary.trim();
-      } else {
-        generatedSummary = await generateAIStory(impactType, {
-          totalGoals,
-          completedGoals,
-          goals: todayGoals
-        }, userName);
-      }
-
       // Save story progress
       const { error: insertError } = await supabase
         .from('story_progress')
         .upsert({
           user_id: user.id,
           date: today,
-          summary: generatedSummary,
+          summary: generatedStory,
           impact_type: impactType
         }, {
           onConflict: 'user_id,date'
@@ -311,9 +411,10 @@ Write the next chapter of ${userName}'s adventure:
       fetchStoryProgress();
       
       toast({
-        title: "História atualizada!",
-        description: aiGenerating ? "Sua aventura épica foi gerada pela IA!" : "Sua aventura épica continua..."
+        title: "História gerada pela IA!",
+        description: "Sua aventura épica foi criada com sucesso!"
       });
+
     } catch (error: any) {
       toast({
         title: "Erro ao gerar história",
@@ -323,6 +424,7 @@ Write the next chapter of ${userName}'s adventure:
     }
 
     setLoading(false);
+    setAiGenerating(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -360,14 +462,14 @@ Write the next chapter of ${userName}'s adventure:
               {aiGenerating ? (
                 <>
                   <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  IA Gerando...
+                  Consultando os anais da sua história...
                 </>
               ) : loading ? (
                 "Salvando..."
               ) : (
                 <>
                   <Wand2 className="h-4 w-4 mr-2" />
-                  Gerar com IA
+                  Gerar história do dia
                 </>
               )}
             </Button>
